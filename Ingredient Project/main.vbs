@@ -57,240 +57,231 @@ Sub Main()
     Else
         checkpoint = MatchSheet.Cells(Rows.Count, 2).End(xlUp).Row - 1
     End If
-    Do
-        Set S = New Selenium.ChromeDriver
-        Application.GoTo Range("A" & checkpoint), True
 
-        Dim searchRange As Range, numSearchItems As Long, searchString As String
-        Set searchRange = MainSheet.Range("A" & checkpoint & ":A" & lastRow(MainSheet))
-        numSearchItems = Application.WorksheetFunction.CountA(searchRange)
-        searchString = ""
+    Set S = New Selenium.ChromeDriver
+    Application.GoTo Range("A" & checkpoint), True
 
-        For Each sku In searchRange
-            searchString = searchString & " " & Trim(sku)
-        Next sku
+    Dim searchRange As Range, numSearchItems As Long, searchString As String
+    Set searchRange = MainSheet.Range("A" & checkpoint & ":A" & lastRow(MainSheet))
+    numSearchItems = Application.WorksheetFunction.CountA(searchRange)
+    searchString = ""
 
-        S.get URL
+    'Create search string of all SKU's
+    For Each sku In searchRange
+        searchString = searchString & " " & Trim(sku)
+    Next sku
 
-        Do Until S.FindElementsByClass("form-control").Count > 0
-            DoEvents
-        Loop
+    S.get URL
 
-        'input SKUs
-        Set searchbox = S.FindElementsByClass("form-control")(1)
-        searchbox = searchbox.ExecuteScript("arguments[0].value='" & searchString & "';$(arguments[0]).trigger('change');", searchbox)
+    'input SKUs
+    Set searchbox = S.FindElementsByClass("form-control")(1)
+    searchbox = searchbox.ExecuteScript("arguments[0].value='" & searchString & "';$(arguments[0]).trigger('change');", searchbox)
 
-        'click to search results
-        S.FindElementByClass("js-button-search").Click
+    'click to search results
+    S.FindElementByClass("js-button-search").Click
 
-        'Ensure the search results return every SKU searched
-        If InStr(S.FindElementByXPath(searchResultsElement).Text, numSearchItems & " items") = 0 Then
-            MsgBox "ERROR: number of items returned is different than number of items searched.  Make sure each item can be found in MAP and try again."
-            End
-        End If
+    'Ensure the search results return every SKU searched
+    If InStr(S.FindElementByXPath(searchResultsElement).Text, numSearchItems & " items") = 0 Then
+        MsgBox "ERROR: number of items returned is different than number of items searched.  Make sure each item can be found in MAP and try again."
+        End
+    End If
 
-        'right click on first result item
-        S.Actions.ClickContext(S.FindElementByXPath("//div[1]/div[4]/table/tbody/tr[1]/td[2]")).Perform
+    'right click on first result item
+    S.Actions.ClickContext(S.FindElementByXPath("//div[1]/div[4]/table/tbody/tr[1]/td[2]")).Perform
 
-        'click to expand ingredient information
-        S.Mouse.moveTo(S.FindElementByXPath("//li[@data-name='EditItemDetails']")).Click
-        updateCount = 0
+    'click to expand ingredient information
+    S.Mouse.moveTo(S.FindElementByXPath("//li[@data-name='EditItemDetails']")).Click
 
-        For Each sku In searchRange
-            Dim IngredientCollection As New Collection, packNameCollection As New Collection, separatedString As New Collection
-            Set IngredientCollection = New Collection
-            Set packNameCollection = New Collection
-            totalIngredientCount = 0
-            y = 1
-            multipack = False
+    For Each sku In searchRange
+        Dim IngredientCollection As New Collection, packNameCollection As New Collection, separatedString As New Collection
+        Set IngredientCollection = New Collection
+        Set packNameCollection = New Collection
+        totalIngredientCount = 0
+        y = 1
+        multipack = False
 
-            'check for multiple sets of ingredients for the item
-            For x = 5 To 17 Step 3
-                If MainSheet.Cells(sku.Row, x) <> "" Or MainSheet.Cells(sku.Row, x + 1) <> "" Or MainSheet.Cells(sku.Row, x + 2) <> "" Then
-                    multipack = True
-                    y = y + 1
-                End If
-            Next x
+        'check for multiple sets of ingredients for the item
+        For x = 5 To 17 Step 3
+            If MainSheet.Cells(sku.Row, x) <> "" Or MainSheet.Cells(sku.Row, x + 1) <> "" Or MainSheet.Cells(sku.Row, x + 2) <> "" Then
+                multipack = True
+                y = y + 1
+            End If
+        Next x
 
-            'add each set of ingredients as a unique collection
-            For x = 1 To y
-                'clean up ingredient string
-                inactiveIngredientString = Trim(MainSheet.Cells(sku.Row, x * 3 + 1))
-                inactiveIngredientString = cleanString(inactiveIngredientString)
+        'add each set of ingredients as a unique collection
+        For x = 1 To y
+            'clean up ingredient string
+            inactiveIngredientString = Trim(MainSheet.Cells(sku.Row, x * 3 + 1))
+            inactiveIngredientString = cleanString(inactiveIngredientString)
 
-                'convert cleaned string to collection of ingredients
-                Set separatedString = New Collection
-                Set separatedString = stringToCollection(inactiveIngredientString)
-                totalIngredientCount = totalIngredientCount + separatedString.Count
-                IngredientCollection.Add separatedString
+            'convert cleaned string to collection of ingredients
+            Set separatedString = New Collection
+            Set separatedString = stringToCollection(inactiveIngredientString)
+            totalIngredientCount = totalIngredientCount + separatedString.Count
+            IngredientCollection.Add separatedString
 
-                'save each pack name if they exist
-                If multipack Then packNameCollection.Add Trim(MainSheet.Cells(sku.Row, x * 3 - 1))
-            Next x
+            'save each pack name if they exist
+            If multipack Then packNameCollection.Add Trim(MainSheet.Cells(sku.Row, x * 3 - 1))
+        Next x
 
-            ingredientsAnalyzed = ingredientsAnalyzed + totalIngredientCount
-            packCount = IngredientCollection.Count
-            If packCount < 1 Then packCount = 1
-----
-            Do
-                StartTime = Now()
+        ingredientsAnalyzed = ingredientsAnalyzed + totalIngredientCount
+        packCount = IngredientCollection.Count
+        If packCount < 1 Then packCount = 1
 
-                'expand all ingredients to check
-                For x = 1 To S.FindElementsByXPath(expandIngElement).Count
-                    S.FindElementsByXPath(expandIngElement)(x).Click
-                Next x
+        StartTime = Now()
 
-                'count the # of inactive ingredients to compare to ingredients for item in excel
-                MAPinactiveCount = S.FindElementsByXPath(deleteInactiveIngElement).Count
-                MAPactiveCount = S.FindElementsByXPath(deleteActiveIngElement).Count
-                If MAPactiveCount = 0 And MAPinactiveCount = 0 Then GoTo AddIngredients
+        'expand all ingredients to check
+        For x = 1 To S.FindElementsByXPath(expandIngElement).Count
+            S.FindElementsByXPath(expandIngElement)(x).Click
+        Next x
 
-                Dim enteredWrong as Boolean
-                If MAPinactiveCount <> totalIngredientCount Or packCount > S.FindElementsByXPath(expandIngElement).Count Then _
+        'count the # of inactive ingredients to compare to ingredients for item in excel
+        MAPinactiveCount = S.FindElementsByXPath(deleteInactiveIngElement).Count
+        MAPactiveCount = S.FindElementsByXPath(deleteActiveIngElement).Count
+        If MAPactiveCount = 0 And MAPinactiveCount = 0 Then GoTo AddIngredients
+
+        Dim enteredWrong as Boolean
+        If MAPinactiveCount <> totalIngredientCount Or packCount > S.FindElementsByXPath(expandIngElement).Count Then _
+            enteredWrong = True
+
+        'check if active ingredient is the same as the inactive ingredient
+        Dim enteredActiveWrong as Boolean
+        For x = 1 To IngredientCollection.Count
+            For y = 1 To IngredientCollection(x).Count
+                ingredient = IngredientCollection(x)(y)
+                For z = 1 To MAPactiveCount
+                    MAPingredient = S.FindElementsByXPath(activeIngElement)(z).Text
+                    If LCase(MAPingredient) = LCase(ingredient) Then
+                        enteredActiveWrong = True
+                    End If
+                Next z
+            Next y
+        Next x
+
+        If enteredWrong or enteredActiveWrong Then GoTo DeleteIngredients
+
+        'check if inactive ingredients match ingredients in Excel doc
+        i = 1
+        For x = 1 To IngredientCollection.Count
+            For y = 1 To IngredientCollection(x).Count
+                ingredient = IngredientCollection(x)(y)
+                MAPingredient = S.FindElementsByXPath(inactiveIngElement)(i).Text
+                If InStr(LCase(MAPingredient), LCase(ingredient)) = 0 And InStr(LCase(ingredient), LCase(MAPingredient)) = 0 Then
                     enteredWrong = True
+                    GoTo DeleteIngredients
+                End If
+                ingredientsMatched = ingredientsMatched + 1
+                i = i + 1
+            Next y
+        Next x
 
-                'check if active ingredient is the same as the inactive ingredient
-                Dim enteredActiveWrong as Boolean
-                For x = 1 To IngredientCollection.Count
-                    For y = 1 To IngredientCollection(x).Count
-                        ingredient = IngredientCollection(x)(y)
-                        For z = 1 To MAPactiveCount
-                            MAPingredient = S.FindElementsByXPath(activeIngElement)(z).Text
-                            If LCase(MAPingredient) = LCase(ingredient) Then
-                                enteredActiveWrong = True
-                            End If
-                        Next z
-                    Next y
-                Next x
-
-                If enteredWrong or enteredActiveWrong Then GoTo DeleteIngredients
-
-                'check if inactive ingredients match ingredients in Excel doc
-                i = 1
-                For x = 1 To IngredientCollection.Count
-                    For y = 1 To IngredientCollection(x).Count
-                        ingredient = IngredientCollection(x)(y)
-                        MAPingredient = S.FindElementsByXPath(inactiveIngElement)(i).Text
-                        If InStr(LCase(MAPingredient), LCase(ingredient)) = 0 And InStr(LCase(ingredient), LCase(MAPingredient)) = 0 Then
-                            enteredWrong = True
-                            GoTo DeleteIngredients
-                        End If
-                        ingredientsMatched = ingredientsMatched + 1
-                        i = i + 1
-                    Next y
-                Next x
-
-                'ingredients matched - confirm and move to next SKU
-                itemsMatched = itemsMatched + 1
-                matchedRunTime = matchedRunTime + Now() - StartTime
-                MatchSheet.Range("B" & sku.Row) = "no change needed"
-                Exit Do
+        'All ingredients matched - confirm and move to next SKU
+        itemsMatched = itemsMatched + 1
+        matchedRunTime = matchedRunTime + Now() - StartTime
+        MatchSheet.Range("B" & sku.Row) = "no change needed"
+        GoTo NextSKU
 
 DeleteIngredients:
-                If MAPactiveCount = 0 Or enteredActiveWrong Then
-                    'delete all ingredient packs
-                    deleteCount = S.FindElementsByXPath(deleteAllIngElement).Count
-                    For x = 1 To deleteCount
-                        S.FindElementByXPath(deleteAllIngElement).Click
-                        S.FindElementByXPath(confirmElement).Click
-                    Next x
-                    S.FindElementByXPath(saveElement).Click
-                Else
-                    'only delete inactive ingredients
-                    For x = 1 To MAPinactiveCount
-                        S.FindElementsByXPath(deleteInactiveIngElement)(1).Click
-                    Next x
-                End If
+        If MAPactiveCount = 0 Or enteredActiveWrong Then
+            'delete all ingredient packs
+            deleteCount = S.FindElementsByXPath(deleteAllIngElement).Count
+            For x = 1 To deleteCount
+                S.FindElementByXPath(deleteAllIngElement).Click
+                S.FindElementByXPath(confirmElement).Click
+            Next x
+            S.FindElementByXPath(saveElement).Click
+        Else
+            'only delete inactive ingredients
+            For x = 1 To MAPinactiveCount
+                S.FindElementsByXPath(deleteInactiveIngElement)(1).Click
+            Next x
+        End If
 
 AddIngredients:
-                For x = 1 To packCount
-                    For y = 1 To IngredientCollection(x).Count
-                        ingredient = IngredientCollection(x)(y)
-                        If x > S.FindElementsByXPath(ingDisplayedElement).Count Then
-                            S.FindElementByXPath(addAllIngElement).Click
-                            S.FindElementsByXPath(expandIngElement)(x).Click
-                            S.FindElementsByXPath(addInactive)(x).Click
-                        End if
-                        'click to add inactive ingredient
-                        Set searchbox = S.FindElementsByXPath(searchboxElement & "/input")(x)
-                        searchbox = searchbox.ExecuteScript("arguments[0].value='" & ingredient & "';$(arguments[0]).trigger('change');", searchbox)
+        For x = 1 To packCount
+            For y = 1 To IngredientCollection(x).Count
+                ingredient = IngredientCollection(x)(y)
 
-                        S.FindElementsByXPath(searchboxElement)(x).Click
+                'Add ingredient set if we need to
+                If x > S.FindElementsByXPath(ingDisplayedElement).Count Then
+                    S.FindElementByXPath(addAllIngElement).Click
+                    S.FindElementsByXPath(expandIngElement)(x).Click
+                    S.FindElementsByXPath(addInactive)(x).Click
+                End if
+                'click to add inactive ingredient
+                Set searchbox = S.FindElementsByXPath(searchboxElement & "/input")(x)
+                searchbox = searchbox.ExecuteScript("arguments[0].value='" & ingredient & "';$(arguments[0]).trigger('change');", searchbox)
 
-                        siblingCount = S.FindElementsByXPath(dropdownElement).Count
+                'Click on input box again to active dropdown listener
+                S.FindElementsByXPath(searchboxElement)(x).Click
 
-                        'go through first 3 available dropdown options to see if they're the same as the ingredient
-                        For i = 2 To 4
-                            If i > siblingCount Then Exit For
-                            If ingredient = S.FindElementsByXPath(dropdownElement)(i).Text Then
-                                S.FindElementsByXPath(dropdownElement)(i).Click
-                                GoTo addNextIngredient
-                            End If
-                        Next i
+                'Count dropdown options
+                siblingCount = S.FindElementsByXPath(dropdownElement).Count
 
-                        'if there are no dropdown ingredients, or no dropdown value the same as the ingredient, add it as a new ingredient
-                        If siblingCount > 1 Then
-                            S.FindElementByXPath("//div[@class='option add']").Click
-                        Else
-                            S.FindElementByXPath("//div[@class='option add selected']").Click
-                        End If
+                'Evaluate first 3 available dropdown options
+                For i = 2 To 4
+                    If i > siblingCount Then Exit For
+                    If ingredient = S.FindElementsByXPath(dropdownElement)(i).Text Then
+                        'Click on ingredient that matches the ingredient entered
+                        S.FindElementsByXPath(dropdownElement)(i).Click
+                        GoTo addNextIngredient
+                    End If
+                Next i
 
-                        'confirm new ingredient addition
-                        S.FindElementByXPath(confirmElement).Click
+                'if there are no dropdown ingredients, or no dropdown value the same as the ingredient, add it as a new ingredient
+                If siblingCount > 1 Then
+                    S.FindElementByXPath("//div[@class='option add']").Click
+                Else
+                    S.FindElementByXPath("//div[@class='option add selected']").Click
+                End If
+
+                'confirm new ingredient addition
+                S.FindElementByXPath(confirmElement).Click
 addNextIngredient:
-                  Next y
-              Next x
+          Next y
+      Next x
 
-              'save changes after last ingredient is entered
+      'save changes after last ingredient is entered
+        S.FindElementByXPath(saveElement).Click
+
+        'Check if there was an issue saving the ingredient update
+        If S.FindElementsByXPath(errorElement).Count > 0 Then
+            Dim errorMessage as String
+            errorMessage = S.FindElementByXPath(errorElement).Text
+            If MAPactiveCount = 0 And Not secondAttempt Then
+                secondAttempt = True
+
+                'Delete entire ingredient list
+                S.FindElementByXPath(deleteAllIngElement).Click
+                S.FindElementByXPath(confirmElement).Click
+
+                'Add new ingredient list
+                S.FindElementByXPath(addAllIngElement).Click
                 S.FindElementByXPath(saveElement).Click
 
-                If S.FindElementsByXPath(errorElement).Count > 0 Then
-                    Dim errorMessage as String
-                    errorMessage = S.FindElementByXPath(errorElement).Text
-                    If MAPactiveCount = 0 And Not secondAttempt Then
-                        secondAttempt = True
-                        S.FindElementByXPath(deleteAllIngElement).Click
-                        Do Until S.FindElementByClass("delete-message").IsDisplayed = True
-                            DoEvents
-                        Loop
-                        S.FindElementByXPath(confirmElement).Click
-                        S.FindElementByXPath(addAllIngElement).Click
-                        S.FindElementByXPath(saveElement).Click
-                        'note: change line below into 2 lines
-                        GoTo AddIngredients
-                    ElseIf InStr(errorMessage, "An item with the same key has already been added.") > 0 Then
-                        MatchSheet.Range("B" & sku.Row) = "ERROR: Duplicate ingredients detected"
-                    ElseIf InStr(errorMessage, "Invalid Amount Per entry:") Then
-                        MatchSheet.Range("B" & sku.Row) = "ERROR: Nutrients entered incorrectly"
-                    ElseIf InStr(errorMessage, "is not a recognized unit measurement") Then
-                        MatchSheet.Range("B" & sku.Row) = "ERROR: Nutrient units entered incorrectly"
-                    End If
+                'Attempt to re-add ingredients
+                GoTo AddIngredients
 
-                    S.FindElementByXPath(undoElement).Click
-                    S.FindElementByXPath(confirmElement).Click
-                End if
-
-                Exit Do
-            Loop
-----
-            If MatchSheet.Range("B" & sku.Row) = "item updated" Then
-                updateCount = updateCount + 1
-            ElseIf MatchSheet.Range("B" & sku.Row) = "no change needed" Then
-                updateCount = updateCount + 0.5
+            ElseIf InStr(errorMessage, "An item with the same key has already been added.") > 0 Then
+                MatchSheet.Range("B" & sku.Row) = "ERROR: Duplicate ingredients detected"
+            ElseIf InStr(errorMessage, "Invalid Amount Per entry:") Then
+                MatchSheet.Range("B" & sku.Row) = "ERROR: Nutrients entered incorrectly"
+            ElseIf InStr(errorMessage, "is not a recognized unit measurement") Then
+                MatchSheet.Range("B" & sku.Row) = "ERROR: Nutrient units entered incorrectly"
             End If
 
-            If updateCount > 10 Then Exit For
+            'Undo changes
+            S.FindElementByXPath(undoElement).Click
+            S.FindElementByXPath(confirmElement).Click
+        End If
 
-            'Click to the next SKU if there is a next SKU
-            If S.FindElementByClass("btn-next").IsEnabled Then S.FindElementByClass("btn-next").Click
-        Next sku
+NextSKU:
+    'Click to the next SKU
+    S.FindElementByClass("btn-next").Click
+    Next sku
 
-        'close browser
-        Set S = Nothing
-
-        checkpoint = MatchSheet.Cells(Rows.Count, 2).End(xlUp).Row + 1
-        If checkpoint = lastRow(MatchSheet) + 1 Then Exit Do
-    Loop
+    'Close browser
+    Set S = Nothing
 
     SKUSheet.Range("$A$1:$B$" & lastRow(SKUSheet)).RemoveDuplicates Columns:=1, Header:=xlYes
 
@@ -298,6 +289,7 @@ addNextIngredient:
     For Each cell In MatchSheet.Range("B2:B" & lastRow(MatchSheet))
         If cell = "item updated" Or cell = "no change needed" Then i = i + 1
     Next cell
+
     MsgBox "Ingredient information up to date for " & i & " items!"
 
 End Sub
