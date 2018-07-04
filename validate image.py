@@ -15,14 +15,6 @@ files = []
 for file in range(0, len(files)):
     if files[file].endswith('db'):
         continue
-    im1 = Image.open(dir + files[file])
-    pix = im1.load()
-    pic_size = im1.size
-    width, height = pic_size
-    avg_dimension = (width + height)/2
-    pix_req = int(round(avg_dimension * 0.016))
-    mid_height = height - pix_req * 2
-    white_pixels = []
 
     file1 = files[file]
     if '_' in files[file]:
@@ -33,18 +25,19 @@ for file in range(0, len(files)):
     next_image = 1
     while True:
         file2 = files[file + next_image]
-        im2 = Image.open(dir + file2)
+
         if '_' in files[file + next_image]:
             file2_upc = files[file + next_image][:files[file + next_image].find('_')]
         else:
             file2_upc = files[file + next_image][:files[file + next_image].find('.')]
         if file1_upc != file2_upc:
+            # Note: will break work?
             break
-        else:
-            next_image += 1
-            if compare_images(file1, file2):
-                duplicate_images.append(file1)
-                duplicate_images.append(file2)
+
+        next_image += 1
+        if compare_images(file1, file2):
+            duplicate_images.append(file1)
+            duplicate_images.append(file2)
 
 
     '''
@@ -72,6 +65,19 @@ for file in range(0, len(files)):
         c. For top and bottom, it gets every 10th wide pixel, and every other height pixel
         d. for left and right, it gets every 10th height pixel, and every other width pixel
     '''
+    # Note: fix this
+    if file.isin(duplicate_images):
+        continue
+
+    # Note: Do I have to load the first image twice?  Once in compare_images, once here
+    im1 = Image.open(dir + files[file])
+    pix = im1.load()
+    pic_size = im1.size
+    width, height = pic_size
+    avg_dimension = (width + height)/2
+    pix_req = int(round(avg_dimension * 0.016))
+    mid_height = height - pix_req * 2
+    white_pixels = []
 
     for a in range(1, int(pix_req), 2):
         # pix[width, height]
@@ -90,29 +96,30 @@ for file in range(0, len(files)):
     if not(all(for i in white_pixels if i == 255)):
         bad_borders.append(files[file])
 
-
-
-
-def compare_images(image1, image2):
+def compare_images(file1, file2):
     # Add: convert to greyscale
+    image1 = Image.open(dir + file1)
+    image2 = Image.open(dir + file2)
     pix1 = image1.load()
     pix2 = image2.laod()
-    pic_size1 = im1.pic_size
-    pic_size2 = im2.pic_size1
-    if sum(pic_size1) == sum(pic_size2):
-        continue
-    else:
-        # pick which image is larger
-        # resize other image to larger image
+    pic_size1 = image1.pic_size
+    pic_size2 = image2.pic_size1
+    # Note: does it make more sense to resize the image?  If so..
+    #   a. Should I resize the smaller image up, or the larger image down?
+    #   b. Is it more efficient to resize both images to a standardized size?
+    if sum(pic_size1) != sum(pic_size2):
+        # Do stuff
 
     if image1 != 95% of image2:
         return False
+        # Note: does an empty 'return' return True?
     else:
         return True
 
 for file in bad_borders:
     shutil.move(dir + file, dir_border + file)
 
+# Note: fix this below
 duplicate_images = n_unique(duplicate_images)
 for file in duplicate_images:
     shutil.move(dir + file, dir_duplicate + file)
