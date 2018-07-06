@@ -8,11 +8,13 @@ dir_duplicate = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Wal
 
 bad_borders = []
 duplicate_images = []
-
 files = []
+
 [files.append(file) for file in os.listdir(dir)]
 
-for file in range(0, len(files)):
+# Note: Do I want to move them into their own folder? I think so...
+# Compare duplicate images
+for file in range(0, len(files) - 1):
     if files[file].endswith('db'):
         continue
 
@@ -21,24 +23,51 @@ for file in range(0, len(files)):
         file1_upc = files[file][:files[file].find('_')]
     else:
         file1_upc = files[file][:files[file].find('.')]
-
     next_image = 1
     while True:
         file2 = files[file + next_image]
-
         if '_' in files[file + next_image]:
             file2_upc = files[file + next_image][:files[file + next_image].find('_')]
         else:
             file2_upc = files[file + next_image][:files[file + next_image].find('.')]
         if file1_upc != file2_upc:
-            # Note: will break work?
             break
-
         next_image += 1
         if compare_images(file1, file2):
             duplicate_images.append(file1)
             duplicate_images.append(file2)
+        else:
+            break
 
+import cv2
+duplicate_images = duplicate_images.nunique()
+def compare_images(file1, file2):
+
+    # Open image
+    image1 = cv2.imread(dir + file1)
+    image2 = cv2.imread(dir + file2)
+
+    # End if image dimensions are different
+    if image1.shape != image2.shape:
+        return
+
+    # Convert to grayscale
+    image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+    # Standardize image size
+    max_size = 100, 100
+    image1 = cv2.resize(image1, max_size)
+    image2 = cv2.resize(image2, max_size)
+
+    difference = cv2.subtract(image1, image2)
+    pix_match = (difference == 0).sum()
+    pix_no_match = (difference > 0).sum()
+
+    percent_similar = pix_match / (pix_match + pix_no_match)
+
+    if percent_similar > 0.90:
+        return True
 
     '''
     How dimensions for white border are calculated
@@ -65,8 +94,9 @@ for file in range(0, len(files)):
         c. For top and bottom, it gets every 10th wide pixel, and every other height pixel
         d. for left and right, it gets every 10th height pixel, and every other width pixel
     '''
-    # Note: fix this
-    if file.isin(duplicate_images):
+# Note: remove files from files list that are duplicate images
+for file in range(0, len(files)):
+    if files[file].endswith('db'):
         continue
 
     # Note: Do I have to load the first image twice?  Once in compare_images, once here
@@ -96,30 +126,39 @@ for file in range(0, len(files)):
     if not(all(for i in white_pixels if i == 255)):
         bad_borders.append(files[file])
 
-def compare_images(file1, file2):
-    # Add: convert to greyscale
-    image1 = Image.open(dir + file1)
-    image2 = Image.open(dir + file2)
-    pix1 = image1.load()
-    pix2 = image2.laod()
-    pic_size1 = image1.pic_size
-    pic_size2 = image2.pic_size1
-    # Note: does it make more sense to resize the image?  If so..
-    #   a. Should I resize the smaller image up, or the larger image down?
-    #   b. Is it more efficient to resize both images to a standardized size?
-    if sum(pic_size1) != sum(pic_size2):
-        # Do stuff
-
-    if image1 != 95% of image2:
-        return False
-        # Note: does an empty 'return' return True?
-    else:
-        return True
-
 for file in bad_borders:
     shutil.move(dir + file, dir_border + file)
 
-# Note: fix this below
-duplicate_images = n_unique(duplicate_images)
 for file in duplicate_images:
     shutil.move(dir + file, dir_duplicate + file)
+
+
+
+'''
+def compare_images(file1, file2):
+
+    # Open image
+    image1 = Image.open(dir + file1)
+    image2 = Image.open(dir + file2)
+
+    # Get image dimensions
+    pic_size1 = image1.pic_size
+    pic_size2 = image2.pic_size
+
+    # End image comparison if images have different dimensions
+    if pic_size1 != pic_size2:
+        return
+
+    # Convert to grayscale
+    image1 = image1.convert('LA')
+    image2 = image2.convert('LA')
+
+    # Standardize image size
+    size = 100, 100
+    image1 = image1.thumbnail(size)
+    image2 = image2.thumbnail(size)
+
+
+    if image1 = 95% of image2:
+        return True
+'''
