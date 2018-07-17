@@ -1,10 +1,8 @@
-Function cleanString(stringToCheck) As String
-'**************************************************************************************************************************
-'Purpose: performs cleaning on ingredient string, to take the following into account:
+'Cleans ingredient string, by factoring in:
 '   a. Human error of ingredient entry by supplier
 '   b. Constraints of entering ingredient information into Walgreens' website
 '   c. Standardization of ingredient string to better locate duplicate ingredients
-'**************************************************************************************************************************
+Function cleanString(stringToCheck) As String
     If InStr(stringToCheck, ",") = 0 Then stringToCheck = Replace(stringToCheck, ".", ",")
     stringToCheck = WorksheetFunction.Proper(stringToCheck)
     stringToCheck = Replace(stringToCheck, vbLf & vbLf, vbLf)

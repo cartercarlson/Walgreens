@@ -1,10 +1,7 @@
+'Look for an indredient listed twice - Walgreens website does not allow duplicate ingredients
+'(algorithm - "Triangular number")
 Sub DuplicateIngredients(ingredientString As Collection)
-'**************************************************************************************************************************
-'Purpose: ensure that the same ingredient is not listed twice within the set of ingredients - Walgreens website does not
-'         allow duplicate ingredients
-'Note:    "nth triangular number" algorithm used to check for duplicates
-'**************************************************************************************************************************
-    Dim a, b As Long
+    Dim a as Long, b As Long
     For a = 1 To ingredientString.Count
         For b = a + 1 To ingredientString.Count
             'check for too long of a string or duplicate ingredients

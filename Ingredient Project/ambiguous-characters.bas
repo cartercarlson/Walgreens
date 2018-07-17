@@ -1,7 +1,5 @@
+'Test for characters in ingredient string that would prevent ingredients from saving the Walgreens website
 Sub AmbiguousCharacters(testString As String)
-'**************************************************************************************************************************
-'Purpose: test for characters in ingredient string that would prevent ingredients from saving the Walgreens website
-'**************************************************************************************************************************
     testString = LCase(testString)
     For i = 0 To UBound(badCharacters)
         If InStr(testString, badCharacters(i)) Then
