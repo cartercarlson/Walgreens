@@ -3,9 +3,13 @@ import shutil
 import cv2
 import cython
 
-dir = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/Images to process/'
-dir_border = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/REJECTED/Bad image border/'
-dir_duplicate = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/REJECTED/Duplicate image/'
+#dir = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/Images to process/'
+#dir_border = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/REJECTED/Bad image border/'
+#dir_duplicate = '//hqfas322003c.corp.drugstore.com/cnc1shared/Files to Clean/Walgreens.com/REJECTED/Duplicate image/'
+
+dir = 'F:/Old/images/'
+dir_border = 'F:/Old/Rejected images/missing border/'
+dir_duplicate = 'F:/Old/Rejected images/duplicate/'
 
 borders = []
 duplicates = []
@@ -41,10 +45,10 @@ for file in range(0, len(files) - 1):
         next_image += 1
 
 # Keep one copy of each image file
-duplicates = duplicates.nunique()
+duplicates = set(duplicates)
 
 # Remove duplicate images so we don't test them for border
-files = set(files) - set(duplicates)
+files = set(files) - duplicates
 
 # Check image for white border
 for file in range(0, len(files)):
@@ -52,7 +56,6 @@ for file in range(0, len(files)):
         continue
 
     image = cv2.imread(dir + files[file])
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     if missing_border(image):
         borders.append(files[file])
@@ -91,11 +94,7 @@ def images_match(file1, file2):
         return True
 
 
-@cython.boundscheck(False)
-cpdef unsigned char[:, :] missing_border(unsigned char [:, :] image):
-    # Set variable extension types
-    cdef int a, b, width, height, pix_req
-    cdef bint h_border, v_border
+def missing_border(image):
 
     v_border = True
     h_border = True
